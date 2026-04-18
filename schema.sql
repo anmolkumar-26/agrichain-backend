@@ -34,11 +34,11 @@ CREATE INDEX IF NOT EXISTS idx_listings_farmer ON listings(farmer_id);
 -- Live crop price board
 CREATE TABLE IF NOT EXISTS crop_prices (
   id        SERIAL PRIMARY KEY,
-  name      VARCHAR(60) UNIQUE NOT NULL,
-  emoji     VARCHAR(8),
-  price     VARCHAR(40) NOT NULL,   -- display string
-  demand    VARCHAR(60),
-  level     VARCHAR(4) CHECK (level IN ('high','med','low')),
+  name      VARCHAR(100) UNIQUE NOT NULL,
+  emoji     VARCHAR(10),
+  price     VARCHAR(20) NOT NULL,   -- display string
+  demand    TEXT,
+  level     VARCHAR(20) CHECK (level IN ('high','med','low')),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -66,16 +66,16 @@ CREATE TABLE IF NOT EXISTS contacts (
 
 -- ─── Seed crop prices ───────────────────────────────────
 INSERT INTO crop_prices (name, emoji, price, demand, level) VALUES
-  ('Wheat',     '🌾', '₹2,150/q',  'High demand',       'high'),
-  ('Rice',      '🍚', '₹1,980/q',  'Ready to sell',     'high'),
-  ('Tomato',    '🍅', '₹28/kg',    'Seasonal',          'med'),
-  ('Cotton',    '🪴', '₹6,200/q',  'Export ready',      'high'),
-  ('Sugarcane', '🎋', '₹350/q',    'Bulk orders',       'med'),
-  ('Onion',     '🧅', '₹22/kg',    'High demand',       'high'),
-  ('Potato',    '🥔', '₹18/kg',    'Available now',     'med'),
-  ('Maize',     '🌽', '₹1,750/q',  'Moderate',          'med'),
-  ('Soybean',   '🫘', '₹4,600/q',  'Processors needed', 'high'),
-  ('Groundnut', '🥜', '₹5,800/q',  'Export ready',      'high'),
-  ('Mango',     '🥭', '₹45/kg',    'Seasonal',          'high'),
-  ('Turmeric',  '🌿', '₹12,000/q', 'Spice exporters',   'med')
+  ('Wheat',     'Wheat', '₹2,150/q',  'High demand',       'high'),
+  ('Rice',      'Rice', '₹1,980/q',  'Ready to sell',     'high'),
+  ('Tomato',    'Tomato', '₹28/kg',    'Seasonal',          'med'),
+  ('Cotton',    'Cotton', '₹6,200/q',  'Export ready',      'high'),
+  ('Sugarcane', 'Sugarcane', '₹350/q',    'Bulk orders',       'med'),
+  ('Onion',     'Onion', '₹22/kg',    'High demand',       'high'),
+  ('Potato',    'Potato', '₹18/kg',    'Available now',     'med'),
+  ('Maize',     'Maize', '₹1,750/q',  'Moderate',          'med'),
+  ('Soybean',   'Soybean', '₹4,600/q',  'Processors needed', 'high'),
+  ('Groundnut', 'Groundnut', '₹5,800/q',  'Export ready',      'high'),
+  ('Mango',     'Mango', '₹45/kg',    'Seasonal',          'high'),
+  ('Turmeric',  'Turmeric', '₹12,000/q', 'Spice exporters',   'med')
 ON CONFLICT (name) DO NOTHING;

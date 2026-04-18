@@ -11,12 +11,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Database ──────────────────────────────────────────────
+// ✅ CORRECT — reads from environment variable
+const { Pool } = require('pg');
+
 const pool = new Pool({
-  user: "postgres",
-  host: "localhost",
-  database: "agrichain",
-  password: "abaa123",   // 👉 your real password
-  port: 5432,
+  connectionString: process.env.postgresql://agrichain_user:J18wxeeaXjMNJzDDLFscFTsvfJdQYYI1@dpg-d7hsjqm7r5hc73d1crjg-a/agrichain_yhjw,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 // ── Middleware ────────────────────────────────────────────
