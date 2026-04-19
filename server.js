@@ -8,21 +8,32 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
-app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
+
+// REQUIRED on Render — trust their load balancer
+app.set('trust proxy', 1);
 
 // ── Database ──────────────────────────────────────────────
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: { rejectUnauthorized: false },
 });
 
-// ── Middleware ────────────────────────────────────────────
-app.set('trust proxy', 1);
-app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
+// ── CORS — allow ALL origins (fix for Netlify) ────────────
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
 app.use(express.json());
-app.use('/api/', rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+
+if (process.env.NODE_ENV === 'production') {
+  app.use('/api/', rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
+}
 
 // ── Auth Middleware ───────────────────────────────────────
 function authenticate(req, res, next) {
@@ -37,7 +48,7 @@ function authenticate(req, res, next) {
 }
 
 // ══════════════════════════════════════════════════════════
-// AUTH ROUTES
+// AUTH
 // ══════════════════════════════════════════════════════════
 
 app.post('/api/auth/register', async (req, res) => {
@@ -59,8 +70,8 @@ app.post('/api/auth/register', async (req, res) => {
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({ user, token });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Register error:', err.message);
+    res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
 
@@ -76,13 +87,13 @@ app.post('/api/auth/login', async (req, res) => {
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ user: { id: user.id, name: user.name, phone: user.phone, role: user.role }, token });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Login error:', err.message);
+    res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
 
 // ══════════════════════════════════════════════════════════
-// LISTINGS ROUTES
+// LISTINGS
 // ══════════════════════════════════════════════════════════
 
 app.get('/api/listings', async (req, res) => {
@@ -112,8 +123,8 @@ app.get('/api/listings', async (req, res) => {
     ]);
     res.json({ listings: rows.rows, total: parseInt(count.rows[0].count), page: parseInt(page) });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Listings error:', err.message);
+    res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
 
@@ -131,8 +142,8 @@ app.post('/api/listings', authenticate, async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Post listing error:', err.message);
+    res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
 
@@ -142,16 +153,15 @@ app.delete('/api/listings/:id', authenticate, async (req, res) => {
       'UPDATE listings SET is_active = false WHERE id = $1 AND farmer_id = $2 RETURNING id',
       [req.params.id, req.user.id]
     );
-    if (!result.rows.length) return res.status(404).json({ error: 'Listing not found or unauthorized' });
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found or unauthorized' });
     res.json({ message: 'Listing removed' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
 
 // ══════════════════════════════════════════════════════════
-// CROPS / PRICES
+// CROPS
 // ══════════════════════════════════════════════════════════
 
 app.get('/api/crops', async (req, res) => {
@@ -159,13 +169,13 @@ app.get('/api/crops', async (req, res) => {
     const result = await pool.query('SELECT * FROM crop_prices ORDER BY name ASC');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Crops error:', err.message);
+    res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
 
 // ══════════════════════════════════════════════════════════
-// BUYER REQUIREMENTS
+// REQUIREMENTS
 // ══════════════════════════════════════════════════════════
 
 app.get('/api/requirements', async (req, res) => {
@@ -177,8 +187,7 @@ app.get('/api/requirements', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
 
@@ -196,8 +205,7 @@ app.post('/api/requirements', authenticate, async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
 
@@ -215,8 +223,7 @@ app.post('/api/contact', authenticate, async (req, res) => {
     );
     res.json({ message: 'Contact logged' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
 
@@ -224,7 +231,14 @@ app.post('/api/contact', authenticate, async (req, res) => {
 // HEALTH CHECK
 // ══════════════════════════════════════════════════════════
 
-app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
+app.get('/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', db: 'connected', ts: new Date() });
+  } catch (err) {
+    res.status(500).json({ status: 'error', db: 'disconnected', error: err.message });
+  }
+});
 
 app.listen(PORT, () => console.log(`AgriChain API running on port ${PORT}`));
 module.exports = app;
